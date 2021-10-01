@@ -1,0 +1,39 @@
+{
+  "project_info": {
+    "project_number": "662259485157",
+    "project_id": "roadsafety-d90af",
+    "storage_bucket": "roadsafety-d90af.appspot.com"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:662259485157:android:101555b937ad1dfb28070c",
+        "android_client_info": {
+          "package_name": "com.amupys.mapsmore"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "662259485157-3i13681gkqpn2d53v9chnpmcb1oqopri.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyC3rkvvuhA_rtBDFnQJxWRQqpsgVnA_Yd4"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "662259485157-3i13681gkqpn2d53v9chnpmcb1oqopri.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
