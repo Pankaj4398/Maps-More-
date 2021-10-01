@@ -2,4 +2,6 @@
     <string name="app_name">Maps&amp;More</string>
     <string name="google_maps_key" templateMergeStrategy="preserve" translatable="false">AIzaSyBXRo4SxW1md5qnzGwVOqseKpgwrWv11dI</string>
     <string name="info_text">This application uses GPS Location and track your live location and suggests information about the area in which you are travelling.</string>
+    <!-- TODO: Remove or change this placeholder text -->
+    <string name="hello_blank_fragment">Hello blank fragment</string>
 </resources>

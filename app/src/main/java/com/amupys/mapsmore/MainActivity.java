@@ -14,7 +14,6 @@ import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.ServiceConnection;
 import android.content.pm.PackageManager;
-import android.location.Location;
 import android.location.LocationManager;
 import android.net.ConnectivityManager;
 import android.net.NetworkInfo;
@@ -28,7 +27,7 @@ import android.view.View;
 import android.view.ViewGroup;
 import android.widget.Button;
 import android.widget.ImageView;
-import android.widget.RelativeLayout;
+import android.widget.LinearLayout;
 import android.widget.TextView;
 import android.widget.Toast;
 
@@ -48,13 +47,15 @@ import com.google.android.gms.maps.model.LatLng;
 import com.google.android.gms.maps.model.MarkerOptions;
 import com.google.android.gms.tasks.OnCompleteListener;
 import com.google.android.gms.tasks.Task;
+import com.google.firebase.auth.FirebaseAuth;
+import com.google.firebase.auth.FirebaseUser;
 
 import org.json.JSONArray;
 import org.json.JSONObject;
 
 import java.util.ArrayList;
 
-public class MainActivity extends AppCompatActivity implements ServiceConnection, View.OnClickListener {
+public class MainActivity extends AppCompatActivity implements View.OnClickListener, ServiceConnection {
 
     public static final float ZOOM = 15f;
     public static final int NUM_ACC = 20;
@@ -66,13 +67,18 @@ public class MainActivity extends AppCompatActivity implements ServiceConnection
     Context mContext;
     private LocationService locationService;
     private Button btnStart, btnAdd;
-    ImageView imageView;
+    ImageView imageView, btn_logout;
     private LatLng latLng;
     static MainActivity instance;
-    private RelativeLayout relativeLayout;
+    private LinearLayout linearLayout;
     public static ArrayList<com.amupys.mapsmore.Location> places, userArray;
+
+    private FirebaseAuth firebaseAuth;
+    private FirebaseUser user;
     private final String[] url = {"https://us-central1-roadsafety-d90af.cloudfunctions.net/app/api/read",
     "https://us-central1-roadsafety-d90af.cloudfunctions.net/app/useraddtoapi/read"};
+
+//    private MapsAndMore mapsAndMore;
 
     @Override
     public void onClick(View v) {
@@ -106,12 +112,18 @@ public class MainActivity extends AppCompatActivity implements ServiceConnection
             case R.id.btn_add_data:
                 addUserData();
                 break;
+            case R.id.btn_logout:
+                firebaseAuth.signOut();
+                btn_logout.setVisibility(View.GONE);
+                user = null;
+                Toast.makeText(MainActivity.this, "Log out successful", Toast.LENGTH_SHORT).show();
+                break;
         }
     }
 
     private void addUserData() {
-        AddFragment addFragment = new AddFragment(MainActivity.this);
-        addFragment.show(this.getSupportFragmentManager(), "bottomMenu");
+        LoginFragment loginFragment = new LoginFragment(MainActivity.this, user, firebaseAuth);
+        loginFragment.show(this.getSupportFragmentManager(), "bottomMenu");
     }
 
     @Override
@@ -121,7 +133,10 @@ public class MainActivity extends AppCompatActivity implements ServiceConnection
         btnStart = findViewById(R.id.btn_start);
         btnAdd = findViewById(R.id.btn_add_data);
 
-        relativeLayout = findViewById(R.id.linear_lay);
+        firebaseAuth = FirebaseAuth.getInstance();
+        user = firebaseAuth.getCurrentUser();
+
+        linearLayout = findViewById(R.id.linear_lay);
 
         btnStart.setOnClickListener(this);
         btnAdd.setOnClickListener(this);
@@ -138,92 +153,95 @@ public class MainActivity extends AppCompatActivity implements ServiceConnection
             Toast.makeText(this, "Oops! No Internet Connection", Toast.LENGTH_SHORT).show();
 
         imageView = findViewById(R.id.btn_main);
+        btn_logout = findViewById(R.id.btn_logout);
+
+        btn_logout.setOnClickListener(this);
         imageView.setOnClickListener(this);
     }
 
-    private void initList() {
-        if(places != null && places.size() != 0){
-        }else {
-            places = new ArrayList<>();
-
-            ProgressDialog progressDialog = new ProgressDialog(this);
-            progressDialog.setMessage("Please wait..");
-            progressDialog.setCancelable(true);
-            progressDialog.show();
-
-            StringRequest request = new StringRequest(Request.Method.GET ,url[0], new Response.Listener<String>() {
-                @Override
-                public void onResponse(String response) {
-                    if(response != null){
-                        progressDialog.dismiss();
-                        try{
-                            JSONArray jsonArray = new JSONArray(response);
-                            for(int i=0;i<jsonArray.length();i++){
-                                JSONObject object = jsonArray.getJSONObject(i);
-                                com.amupys.mapsmore.Location location = new com.amupys.mapsmore.Location(null, object.getString("name"), object.getString("description")
-                                        , object.getDouble("lat"), object.getDouble("long"), object.getInt("Acc_per_year")
-                                        , object.getInt("Speed_limit"));
-
-                                places.add(location);
-                            }
-                        }catch (Exception e){
-                            e.printStackTrace();
-                        }
-                    }
-                }
-            }, new Response.ErrorListener() {
-                @Override
-                public void onErrorResponse(VolleyError error) {
-                    Toast.makeText(MainActivity.this, error.toString(), Toast.LENGTH_SHORT).show();
-                }
-            });
-
-            RequestQueue queue = Volley.newRequestQueue(this);
-
-            queue.add(request);
-        }
-
-        if(userArray != null && userArray.size() != 0){}else {
-            userArray = new ArrayList<>();
-
-            ProgressDialog progressDialog = new ProgressDialog(this);
-            progressDialog.setMessage("Please wait..");
-            progressDialog.setCancelable(true);
-            progressDialog.show();
-
-            StringRequest request = new StringRequest(Request.Method.GET ,url[1], new Response.Listener<String>() {
-                @Override
-                public void onResponse(String response) {
-                    if(response != null){
-                        progressDialog.dismiss();
-                        try{
-                            JSONArray jsonArray = new JSONArray(response);
-                            for(int i=0;i<jsonArray.length();i++){
-                                JSONObject object = jsonArray.getJSONObject(i);
-                                com.amupys.mapsmore.Location location = new com.amupys.mapsmore.Location(null, object.getString("name"), object.getString("description")
-                                        , object.getDouble("lat"), object.getDouble("long"), object.getInt("Acc_per_year")
-                                        , object.getInt("Speed_limit"));
-
-                                location.setTimeOfAcc(object.getLong("time"));
-                                userArray.add(location);
-                            }
-                        }catch (Exception e){
-                            e.printStackTrace();
-                        }
-                    }
-                }
-            }, new Response.ErrorListener() {
-                @Override
-                public void onErrorResponse(VolleyError error) {
-                    Toast.makeText(MainActivity.this, error.toString(), Toast.LENGTH_SHORT).show();
-                }
-            });
-
-            RequestQueue queue = Volley.newRequestQueue(this);
-
-            queue.add(request);
-        }
-    }
+//    private void initList() {
+//        if(places != null && places.size() != 0){
+//        }else {
+//            places = new ArrayList<>();
+//
+//            ProgressDialog progressDialog = new ProgressDialog(this);
+//            progressDialog.setMessage("Please wait..");
+//            progressDialog.setCancelable(true);
+//            progressDialog.show();
+//
+//            StringRequest request = new StringRequest(Request.Method.GET ,url[0], new Response.Listener<String>() {
+//                @Override
+//                public void onResponse(String response) {
+//                    if(response != null){
+//                        progressDialog.dismiss();
+//                        try{
+//                            JSONArray jsonArray = new JSONArray(response);
+//                            for(int i=0;i<jsonArray.length();i++){
+//                                JSONObject object = jsonArray.getJSONObject(i);
+//                                com.amupys.mapsmore.Location location = new com.amupys.mapsmore.Location(null, object.getString("name"), object.getString("description")
+//                                        , object.getDouble("lat"), object.getDouble("long"), object.getInt("Acc_per_year")
+//                                        , object.getInt("Speed_limit"));
+//
+//                                places.add(location);
+//                            }
+//                        }catch (Exception e){
+//                            e.printStackTrace();
+//                        }
+//                    }
+//                }
+//            }, new Response.ErrorListener() {
+//                @Override
+//                public void onErrorResponse(VolleyError error) {
+//                    Toast.makeText(MainActivity.this, error.toString(), Toast.LENGTH_SHORT).show();
+//                }
+//            });
+//
+//            RequestQueue queue = Volley.newRequestQueue(this);
+//
+//            queue.add(request);
+//        }
+//
+//        if(userArray != null && userArray.size() != 0){}else {
+//            userArray = new ArrayList<>();
+//
+//            ProgressDialog progressDialog = new ProgressDialog(this);
+//            progressDialog.setMessage("Please wait..");
+//            progressDialog.setCancelable(true);
+//            progressDialog.show();
+//
+//            StringRequest request = new StringRequest(Request.Method.GET ,url[1], new Response.Listener<String>() {
+//                @Override
+//                public void onResponse(String response) {
+//                    if(response != null){
+//                        progressDialog.dismiss();
+//                        try{
+//                            JSONArray jsonArray = new JSONArray(response);
+//                            for(int i=0;i<jsonArray.length();i++){
+//                                JSONObject object = jsonArray.getJSONObject(i);
+//                                com.amupys.mapsmore.Location location = new com.amupys.mapsmore.Location(null, object.getString("name"), object.getString("description")
+//                                        , object.getDouble("lat"), object.getDouble("long"), object.getInt("Acc_per_year")
+//                                        , object.getInt("Speed_limit"));
+//
+//                                location.setTimeOfAcc(object.getLong("time"));
+//                                userArray.add(location);
+//                            }
+//                        }catch (Exception e){
+//                            e.printStackTrace();
+//                        }
+//                    }
+//                }
+//            }, new Response.ErrorListener() {
+//                @Override
+//                public void onErrorResponse(VolleyError error) {
+//                    Toast.makeText(MainActivity.this, error.toString(), Toast.LENGTH_SHORT).show();
+//                }
+//            });
+//
+//            RequestQueue queue = Volley.newRequestQueue(this);
+//
+//            queue.add(request);
+//        }
+//    }
 
     public static MainActivity getInstance(){
         return instance;
@@ -234,6 +252,13 @@ public class MainActivity extends AppCompatActivity implements ServiceConnection
         Intent intent = new Intent(this, LocationService.class);
         bindService(intent, this, BIND_AUTO_CREATE);
 
+        if(firebaseAuth.getCurrentUser() != null){
+            btn_logout.setVisibility(View.VISIBLE);
+            user = firebaseAuth.getCurrentUser();
+        }else {
+            btn_logout.setVisibility(View.GONE);
+        }
+//
         getLocationPermission();
     }
 
@@ -280,16 +305,100 @@ public class MainActivity extends AppCompatActivity implements ServiceConnection
         }
     }
 
+    private void initList() {
+        if(places != null && places.size() != 0){
+        }else {
+            places = new ArrayList<>();
+
+            final ProgressDialog progressDialog = new ProgressDialog(this);
+            progressDialog.setMessage("Please wait..");
+            progressDialog.setCancelable(true);
+            progressDialog.show();
+
+            StringRequest request = new StringRequest(Request.Method.GET ,url[0], new Response.Listener<String>() {
+                @Override
+                public void onResponse(String response) {
+                    if(response != null){
+                        progressDialog.dismiss();
+                        try{
+                            JSONArray jsonArray = new JSONArray(response);
+                            for(int i=0;i<jsonArray.length();i++){
+                                JSONObject object = jsonArray.getJSONObject(i);
+                                Location location = new Location(null, object.getString("name"), object.getString("description")
+                                        , object.getDouble("lat"), object.getDouble("long"), object.getInt("Acc_per_year")
+                                        , object.getInt("Speed_limit"));
+
+                                places.add(location);
+                            }
+                        }catch (Exception e){
+                            e.printStackTrace();
+                        }
+                    }
+                }
+            }, new Response.ErrorListener() {
+                @Override
+                public void onErrorResponse(VolleyError error) {
+                    Toast.makeText(MainActivity.this, error.toString(), Toast.LENGTH_SHORT).show();
+                }
+            });
+
+            RequestQueue queue = Volley.newRequestQueue(this);
+
+            queue.add(request);
+        }
+
+        if(userArray != null && userArray.size() != 0){}else {
+            userArray = new ArrayList<>();
+
+            final ProgressDialog progressDialogU = new ProgressDialog(this);
+            progressDialogU.setMessage("Please wait..");
+            progressDialogU.setCancelable(true);
+            progressDialogU.show();
+
+            StringRequest request = new StringRequest(Request.Method.GET ,url[1], new Response.Listener<String>() {
+                @Override
+                public void onResponse(String response) {
+                    if(response != null){
+                        progressDialogU.dismiss();
+                        try{
+                            JSONArray jsonArray = new JSONArray(response);
+                            for(int i=0;i<jsonArray.length();i++){
+                                JSONObject object = jsonArray.getJSONObject(i);
+                                Location location = new Location(null, object.getString("name"), object.getString("description")
+                                        , object.getDouble("lat"), object.getDouble("long"), object.getInt("Acc_per_year")
+                                        , object.getInt("Speed_limit"));
+
+                                location.setTimeOfAcc(object.getLong("time"));
+                                userArray.add(location);
+                            }
+                        }catch (Exception e){
+                            e.printStackTrace();
+                        }
+                    }
+                }
+            }, new Response.ErrorListener() {
+                @Override
+                public void onErrorResponse(VolleyError error) {
+                    Toast.makeText(MainActivity.this, error.toString(), Toast.LENGTH_SHORT).show();
+                }
+            });
+
+            RequestQueue queue = Volley.newRequestQueue(this);
+
+            queue.add(request);
+        }
+    }
+
     public LatLng getLocation(Context context) {
         fusedLocationProviderClient = LocationServices.getFusedLocationProviderClient(context);
         try {
             if (mLocationPermission) {
-                Task<Location> location = fusedLocationProviderClient.getLastLocation();
-                location.addOnCompleteListener(new OnCompleteListener<Location>() {
+                Task<android.location.Location> locationTask = fusedLocationProviderClient.getLastLocation();
+                locationTask.addOnCompleteListener(new OnCompleteListener<android.location.Location>() {
                     @Override
-                    public void onComplete(@NonNull Task<Location> task) {
+                    public void onComplete(@NonNull Task<android.location.Location> task) {
                         if (task.isSuccessful()) {
-                            Location location1 = (Location) task.getResult();
+                            android.location.Location location1 = (android.location.Location) task.getResult();
                             if (location1 != null) {
                                 latLng = new  LatLng(location1.getLatitude(), location1.getLongitude());
                                 moveCamera(latLng, ZOOM, "My Location");
@@ -313,9 +422,7 @@ public class MainActivity extends AppCompatActivity implements ServiceConnection
         Log.e("move camera", "done");
         mMap.moveCamera(CameraUpdateFactory.newLatLngZoom(latlng, zoom));
 
-        MarkerOptions options = new MarkerOptions()
-                .position(latlng)
-                .title(title);
+        MarkerOptions options = new MarkerOptions().position(latlng).title(title);
         mMap.addMarker(options);
     }
 
@@ -369,15 +476,15 @@ public class MainActivity extends AppCompatActivity implements ServiceConnection
 //        toast.setView(layout);
 //        toast.show();
 
-        relativeLayout.removeAllViews();
-        relativeLayout.addView(layout);
-        relativeLayout.setVisibility(View.VISIBLE);
+        linearLayout.removeAllViews();
+        linearLayout.addView(layout);
+        linearLayout.setVisibility(View.VISIBLE);
 
         Handler handler = new Handler();
         handler.postDelayed(new Runnable() {
             @Override
             public void run() {
-                relativeLayout.setVisibility(View.INVISIBLE);
+                linearLayout.setVisibility(View.INVISIBLE);
             }
         }, 30000);
     }

@@ -1,6 +1,12 @@
-package com.amupys.mapsmore;
+package com.amupys.maps_and_more;
+
+import static com.amupys.maps_and_more.MapsAndMore.MEDIUM_ACCIDENT;
+import static com.amupys.maps_and_more.MapsAndMore.NUM_ACC;
+import static com.amupys.maps_and_more.MapsAndMore.places;
+import static com.amupys.maps_and_more.MapsAndMore.small_icon;
 
 import android.annotation.SuppressLint;
+import android.app.Activity;
 import android.app.Notification;
 import android.app.NotificationChannel;
 import android.app.NotificationManager;
@@ -14,8 +20,14 @@ import android.location.LocationListener;
 import android.location.LocationManager;
 import android.os.Binder;
 import android.os.Build;
+import android.os.Handler;
 import android.os.IBinder;
 import android.util.Log;
+import android.view.LayoutInflater;
+import android.view.View;
+import android.view.ViewGroup;
+import android.widget.LinearLayout;
+import android.widget.TextView;
 import android.widget.Toast;
 
 import androidx.annotation.NonNull;
@@ -25,23 +37,27 @@ import androidx.core.app.NotificationCompat;
 
 import com.google.android.gms.maps.model.LatLng;
 
-import static com.amupys.mapsmore.MainActivity.places;
-
-public class LocationService extends Service {
-
+public class ServiceLocation extends Service {
     public static final int MIN_DISTANCE = 10;
     public static final int MIN_RESPONSE_DISTANCE = 30;
     IBinder mBinder = new MyBinder();
     private LatLng latLng;
     private boolean running = false;
     private LocationManager locationManager;
+    private Activity activity;
+    private LinearLayout view;
+
+    public void configure(Activity activity, LinearLayout v){
+        this.activity = activity;
+        view = v;
+    }
 
     @SuppressLint("MissingPermission")
     @Override
     public void onCreate() {
         super.onCreate();
 
-        locationManager=(LocationManager) MainActivity.getInstance().getSystemService(Context.LOCATION_SERVICE);
+        locationManager=(LocationManager) activity.getSystemService(Context.LOCATION_SERVICE);
         locationManager.requestLocationUpdates( LocationManager.GPS_PROVIDER,
                 2000,
                 10, locationListener);
@@ -86,24 +102,24 @@ public class LocationService extends Service {
     }
 
     public class MyBinder extends Binder {
-        LocationService getService(){
-            return LocationService.this;
+        ServiceLocation getService(){
+            return ServiceLocation.this;
         }
     }
 
     public void trackUserLocation(LatLng latLng1, LatLng latLng2){
         if(latLng1 != null && latLng2 != null && distance(latLng1, latLng2) > MIN_DISTANCE ){
             LatLng latLng3;
-            for(com.amupys.mapsmore.Location l : places){
+            for(LocationItem l : places){
                 latLng3 = new LatLng(l.getLatitude(), l.getLongitude());
                 if(distance(latLng2, latLng3) < MIN_RESPONSE_DISTANCE){
                     try {
-                        MainActivity.getInstance().createToast(l);
+                        createToast(l, view);
                     }catch (Exception e){
                         Toast.makeText(this, e.getMessage(), Toast.LENGTH_SHORT).show();
                     }
                     try {
-                        MainActivity.getInstance().moveCamera(latLng3, 15f, l.getName());
+//                        MainActivity.getInstance().moveCamera(latLng3, 15f, l.getName());
                     }catch (Exception r){
                         Toast.makeText(this, r.getMessage(), Toast.LENGTH_SHORT).show();
                     }
@@ -113,6 +129,46 @@ public class LocationService extends Service {
                 }
             }
         }
+    }
+
+    private void createToast(LocationItem location, final LinearLayout view){
+        LayoutInflater inflater = activity.getLayoutInflater();
+        View layout = inflater.inflate(R.layout.toast_layout, activity.<ViewGroup>findViewById(R.id.toast_lay_root));
+
+        if(location.getNumAcc() >= NUM_ACC){
+            layout.setBackgroundColor(activity.getResources().getColor(R.color.red));
+        }else if(location.getNumAcc() < NUM_ACC && location.getNumAcc() > MEDIUM_ACCIDENT)
+            layout.setBackgroundColor(activity.getResources().getColor(R.color.yellow));
+        TextView text1 = (TextView) layout.findViewById(R.id.toast_loc);
+        text1.setText(location.getName());
+        TextView text = (TextView) layout.findViewById(R.id.toast_des);
+        text.setText(location.getDescription());
+        TextView speed = layout.findViewById(R.id.txt_speed), severe = layout.findViewById(R.id.txt_severity);
+        speed.setText("Speed: "+location.getSpeedLim()+" Km/hr");
+        int num = location.getNumAcc();
+        if(num>50)
+            severe.setText("High");
+        else
+            severe.setText("Moderate");
+
+
+//        Toast toast = new Toast(getApplicationContext());
+//        toast.setGravity(Gravity.CENTER_VERTICAL, 0, 0);
+//        toast.setDuration(Toast.LENGTH_LONG);
+//        toast.setView(layout);
+//        toast.show();
+
+        view.removeAllViews();
+        view.addView(layout);
+        view.setVisibility(View.VISIBLE);
+
+        Handler handler = new Handler();
+        handler.postDelayed(new Runnable() {
+            @Override
+            public void run() {
+                view.setVisibility(View.INVISIBLE);
+            }
+        }, 30000);
     }
 
     boolean isRunning(){
@@ -128,7 +184,7 @@ public class LocationService extends Service {
     @RequiresApi(api = Build.VERSION_CODES.O)
     private void startMyOwnForeground(String location, String message){
         Log.e("Notification", "done");
-        Intent notificationIntent = new Intent(this, MainActivity.class);
+        Intent notificationIntent = new Intent(this, activity.getClass());
         PendingIntent pendingIntent = PendingIntent.getActivity(this,
                 0, notificationIntent, 0);
 
@@ -143,7 +199,7 @@ public class LocationService extends Service {
 
         NotificationCompat.Builder notificationBuilder = new NotificationCompat.Builder(this, NOTIFICATION_CHANNEL_ID)
                 .setOngoing(false)
-                .setSmallIcon(R.mipmap.location)
+                .setSmallIcon(small_icon)
                 .setContentTitle(location)
                 .setContentText(message)
                 .setPriority(NotificationManager.IMPORTANCE_MAX)
